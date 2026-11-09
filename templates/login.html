@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In — TrustVault{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+  <div class="col-12 col-md-8 col-lg-5">
+    <div class="text-center mb-4">
+      <div class="d-inline-flex p-3 rounded-4 bg-dark border border-secondary mb-3 shadow-lg">
+        <i class="bi bi-shield-lock text-success display-6"></i>
+      </div>
+      <h2 class="fw-bold text-white">Trust<span class="text-success">Vault</span></h2>
+      <p class="text-secondary small">
+        Where the wrong person can never read the file, and you can prove who read it.
+      </p>
+    </div>
+
+    <div class="card p-4 shadow-lg">
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label text-uppercase small text-secondary fw-semibold">Username</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-person"></i></span>
+            <input type="text" id="usernameInput" name="username" class="form-control bg-dark text-white border-secondary" required placeholder="Enter username">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label text-uppercase small text-secondary fw-semibold">Password</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-key"></i></span>
+            <input type="password" id="passwordInput" name="password" class="form-control bg-dark text-white border-secondary" required placeholder="••••••••••••">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-emerald w-full py-2 fw-semibold shadow w-100">
+          Sign In to Vault <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+      </form>
+
+      <!-- 1-Click Demo Accounts -->
+      <div class="mt-4 pt-3 border-top border-secondary">
+        <div class="text-secondary text-uppercase small fw-bold mb-2">
+          <i class="bi bi-lightning-charge text-warning me-1"></i> 1-Click Demo Credentials
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <button type="button" onclick="quickFill('admin', 'Admin@123456')" class="btn btn-outline-secondary w-100 text-start p-2 border-secondary">
+              <div class="fw-bold text-purple text-info small">Admin</div>
+              <div class="text-secondary" style="font-size: 0.65rem;">admin / Admin@123456</div>
+            </button>
+          </div>
+          <div class="col-6">
+            <button type="button" onclick="quickFill('owner', 'Owner@123456')" class="btn btn-outline-secondary w-100 text-start p-2 border-secondary">
+              <div class="fw-bold text-success small">Owner 1</div>
+              <div class="text-secondary" style="font-size: 0.65rem;">owner / Owner@123456</div>
+            </button>
+          </div>
+          <div class="col-6">
+            <button type="button" onclick="quickFill('owner2', 'Owner2@123456')" class="btn btn-outline-secondary w-100 text-start p-2 border-secondary">
+              <div class="fw-bold text-success small">Owner 2</div>
+              <div class="text-secondary" style="font-size: 0.65rem;">owner2 / Owner2@123456</div>
+            </button>
+          </div>
+          <div class="col-6">
+            <button type="button" onclick="quickFill('viewer', 'Viewer@123456')" class="btn btn-outline-secondary w-100 text-start p-2 border-secondary">
+              <div class="fw-bold text-primary small">Viewer 1</div>
+              <div class="text-secondary" style="font-size: 0.65rem;">viewer / Viewer@123456</div>
+            </button>
+          </div>
+          <div class="col-12">
+            <button type="button" onclick="quickFill('viewer2', 'Viewer2@123456')" class="btn btn-outline-secondary w-100 text-start p-2 border-secondary">
+              <div class="fw-bold text-primary small">Viewer 2 (Unshared by Default)</div>
+              <div class="text-secondary" style="font-size: 0.65rem;">viewer2 / Viewer2@123456</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function quickFill(user, pass) {
+  document.getElementById('usernameInput').value = user;
+  document.getElementById('passwordInput').value = pass;
+}
+</script>
+{% endblock %}

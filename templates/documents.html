@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Document Vault — TrustVault{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 pb-3 border-bottom border-secondary mb-4">
+  <div>
+    <h3 class="fw-bold text-white mb-1">
+      <i class="bi bi-folder2-open text-success me-2"></i> Document Vault
+    </h3>
+    <p class="text-secondary small mb-0">
+      {% if user.role == 'admin' %}
+        Admin view: Global metadata monitoring. All access attempts are cryptographically audited.
+      {% elif user.role == 'owner' %}
+        Owned documents and files explicitly granted to you. You can grant or immediately take back access.
+      {% else %}
+        Viewer view: Only documents with an active explicit grant are visible.
+      {% endif %}
+    </p>
+  </div>
+
+  {% if user.role == 'owner' or user.role == 'admin' %}
+  <button type="button" class="btn btn-emerald" data-bs-toggle="modal" data-bs-target="#uploadModal">
+    <i class="bi bi-cloud-upload me-1"></i> Upload Document
+  </button>
+  {% endif %}
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="row g-2 mb-4">
+  <div class="col-12 col-md-8">
+    <form method="get" class="d-flex gap-2">
+      <div class="input-group">
+        <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+        <input type="text" name="search" value="{{ search_query }}" class="form-control bg-dark text-white border-secondary" placeholder="Search by title, description or filename...">
+        {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+        <button class="btn btn-outline-secondary border-secondary" type="submit">Search</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-12 col-md-4">
+    <form method="get" id="catForm">
+      {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+      <select name="category" class="form-select bg-dark text-white border-secondary" onchange="document.getElementById('catForm').submit()">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+<!-- Documents Table -->
+<div class="card overflow-hidden">
+  {% if documents %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-dark text-secondary small text-uppercase">
+        <tr>
+          <th class="ps-4">Document</th>
+          <th>Category</th>
+          <th>Owner</th>
+          <th>Size</th>
+          <th>Uploaded</th>
+          <th class="text-end pe-4">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+        <tr>
+          <td class="ps-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="p-2 bg-dark rounded border border-secondary text-success">
+                <i class="bi bi-file-earmark-lock2 fs-5"></i>
+              </div>
+              <div>
+                <a href="{% url 'document_detail' doc_id=doc.id %}" class="fw-semibold text-white text-decoration-none">
+                  {{ doc.title }}
+                </a>
+                <div class="text-secondary small d-flex gap-2 align-items-center mt-1">
+                  <span>{{ doc.original_filename }}</span>
+                  <span class="code-pill text-success border-success">AES-256-GCM</span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if doc.category %}
+              <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ doc.category }}</span>
+            {% else %}
+              <span class="text-secondary small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small fw-semibold text-white">
+              {% if doc.owner == user %}
+                <span class="text-success">You ({{ doc.owner.username }})</span>
+              {% else %}
+                {{ doc.owner.username }}
+              {% endif %}
+            </div>
+            <div class="text-secondary" style="font-size: 0.75rem;">{{ doc.owner.email }}</div>
+          </td>
+          <td class="small font-monospace text-secondary">
+            {{ doc.file_size|filesizeformat }}
+          </td>
+          <td class="small text-secondary">
+            {{ doc.created_at|date:"M d, Y H:i" }}
+          </td>
+          <td class="text-end pe-4">
+            <div class="btn-group btn-group-sm">
+              <a href="{% url 'document_download' doc_id=doc.id %}" class="btn btn-outline-success" title="Download Decrypted File">
+                <i class="bi bi-download"></i>
+              </a>
+              {% if doc.owner == user or user.role == 'admin' %}
+              <a href="{% url 'document_delete' doc_id=doc.id %}" onclick="return confirm('Soft-delete this document? All active viewer grants will be immediately revoked.')" class="btn btn-outline-danger" title="Delete">
+                <i class="bi bi-trash"></i>
+              </a>
+              {% endif %}
+              <a href="{% url 'document_detail' doc_id=doc.id %}" class="btn btn-outline-primary" title="Details & ACL">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-folder-x display-4 text-secondary mb-3"></i>
+    <h5 class="text-white">No accessible documents found</h5>
+    <p class="text-secondary small max-w-sm mx-auto">
+      You have not uploaded any files, and no documents have been explicitly granted to your account.
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark border border-secondary text-white">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title"><i class="bi bi-cloud-upload text-success me-2"></i> Upload to TrustVault</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label text-secondary small fw-semibold">Select File *</label>
+            <input type="file" name="file" class="form-control bg-dark text-white border-secondary" required>
+            <div class="form-text text-secondary" style="font-size: 0.75rem;">
+              File will be encrypted client-to-disk using AES-256-GCM. Max 50MB.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small fw-semibold">Document Title *</label>
+            <input type="text" name="title" class="form-control bg-dark text-white border-secondary" required placeholder="e.g. Q4 Financial Audit Report">
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small fw-semibold">Category</label>
+            <input type="text" name="category" class="form-control bg-dark text-white border-secondary" placeholder="e.g. Finance, Legal, HR">
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small fw-semibold">Confidentiality Notes / Description</label>
+            <textarea name="description" rows="3" class="form-control bg-dark text-white border-secondary" placeholder="Confidential background or access instructions..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-emerald">Encrypt & Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Console — TrustVault{% endblock %}
+
+{% block content %}
+<div class="pb-3 border-bottom border-secondary mb-4">
+  <h3 class="fw-bold text-white mb-1">
+    <i class="bi bi-people text-primary me-2"></i> System Administration & Oversight
+  </h3>
+  <p class="text-secondary small mb-0">
+    Manage user identities, oversee vault activity, and immediately lock out accounts.
+  </p>
+</div>
+
+<!-- Stats Grid -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between text-secondary text-uppercase small fw-bold">
+        <span>Total Users</span>
+        <i class="bi bi-person-badge text-primary"></i>
+      </div>
+      <div class="fs-3 fw-bold text-white mt-1">{{ users.count }}</div>
+      <div class="text-secondary small">Registered accounts</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between text-secondary text-uppercase small fw-bold">
+        <span>Encrypted Docs</span>
+        <i class="bi bi-file-earmark-lock text-success"></i>
+      </div>
+      <div class="fs-3 fw-bold text-white mt-1">{{ total_docs }}</div>
+      <div class="text-success small">AES-256-GCM at rest</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between text-secondary text-uppercase small fw-bold">
+        <span>Active Grants</span>
+        <i class="bi bi-shield-check text-purple text-info"></i>
+      </div>
+      <div class="fs-3 fw-bold text-white mt-1">{{ active_grants }}</div>
+      <div class="text-secondary small">Explicit ACL rules</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between text-secondary text-uppercase small fw-bold">
+        <span>Audited Events</span>
+        <i class="bi bi-clock-history text-warning"></i>
+      </div>
+      <div class="fs-3 fw-bold text-white mt-1">{{ total_logs }}</div>
+      <div class="text-warning small">HMAC-signed chain</div>
+    </div>
+  </div>
+</div>
+
+<!-- User Management Table -->
+<div class="card p-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold text-white mb-0">User Access Management</h5>
+    <span class="text-secondary small">Toggling active status immediately terminates authentication</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small">
+      <thead class="table-dark text-secondary text-uppercase" style="font-size: 0.7rem;">
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Date Joined</th>
+          <th class="text-end">Lockout Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-white">{{ u.username }}</div>
+            <div class="text-secondary" style="font-size: 0.75rem;">{{ u.email }}</div>
+          </td>
+          <td>
+            <span class="badge badge-{{ u.role }} text-uppercase">{{ u.role }}</span>
+          </td>
+          <td>
+            {% if u.is_active %}
+            <span class="badge bg-success-subtle text-success-emphasis"><i class="bi bi-check-circle me-1"></i> Active</span>
+            {% else %}
+            <span class="badge bg-danger-subtle text-danger-emphasis"><i class="bi bi-slash-circle me-1"></i> Locked Out</span>
+            {% endif %}
+          </td>
+          <td class="text-secondary">{{ u.date_joined|date:"M d, Y" }}</td>
+          <td class="text-end">
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="toggle_user" value="1">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              {% if u.is_active %}
+              <button type="submit" class="btn btn-outline-danger btn-sm py-0" onclick="return confirm('Disable {{ u.username }} immediately?')">
+                <i class="bi bi-power me-1"></i> Disable Account
+              </button>
+              {% else %}
+              <button type="submit" class="btn btn-outline-success btn-sm py-0">
+                <i class="bi bi-power me-1"></i> Enable Account
+              </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

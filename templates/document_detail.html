@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ doc.title }} — TrustVault{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <a href="{% url 'documents_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i> Back to Documents
+  </a>
+  <a href="{% url 'document_download' doc_id=doc.id %}" class="btn btn-emerald">
+    <i class="bi bi-download me-1"></i> Download Decrypted File
+  </a>
+</div>
+
+<!-- Main Document Card -->
+<div class="card p-4 mb-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 pb-3 border-bottom border-secondary mb-3">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h3 class="fw-bold text-white mb-0">{{ doc.title }}</h3>
+        {% if doc.category %}
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ doc.category }}</span>
+        {% endif %}
+      </div>
+      <div class="text-secondary small mt-1 d-flex gap-3">
+        <span>Owner: <strong class="text-white">{{ doc.owner.username }}</strong> ({{ doc.owner.email }})</span>
+        <span>•</span>
+        <span>Uploaded: {{ doc.created_at|date:"M d, Y H:i" }}</span>
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#editMetaCollapse">
+      <i class="bi bi-pencil me-1"></i> Edit Metadata
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- In-line Edit Form -->
+  {% if can_edit %}
+  <div class="collapse mb-4" id="editMetaCollapse">
+    <div class="card card-body bg-dark border-secondary">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="update_metadata" value="1">
+        <div class="row g-2 mb-2">
+          <div class="col-md-8">
+            <label class="form-label small text-secondary">Document Title</label>
+            <input type="text" name="title" value="{{ doc.title }}" class="form-control form-control-sm bg-dark text-white border-secondary" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-secondary">Category</label>
+            <input type="text" name="category" value="{{ doc.category|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Description</label>
+          <textarea name="description" rows="2" class="form-control form-control-sm bg-dark text-white border-secondary">{{ doc.description|default:'' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success btn-sm">Save Changes</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Details & Crypto Grid -->
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <div class="text-secondary small text-uppercase fw-semibold mb-2">Description / Notes</div>
+      <div class="p-3 bg-dark rounded border border-secondary text-white small" style="min-height: 5rem;">
+        {{ doc.description|default:"No description provided." }}
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="text-secondary small text-uppercase fw-semibold mb-2">Cryptographic Parameters</div>
+      <div class="p-3 bg-dark rounded border border-secondary font-monospace small">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-secondary">Original Name:</span>
+          <span class="text-white">{{ doc.original_filename }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-secondary">Cipher:</span>
+          <span class="text-success fw-bold">AES-256-GCM (Authenticated)</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-secondary">Plaintext SHA-256:</span>
+          <span class="text-white text-truncate" style="max-width: 220px;" title="{{ doc.checksum }}">{{ doc.checksum }}</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-secondary">File Size:</span>
+          <span class="text-white">{{ doc.file_size|filesizeformat }} ({{ doc.file_size }} bytes)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Access Control List (Owner / Admin) -->
+{% if is_owner or user.role == 'admin' %}
+<div class="card p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-bold text-white mb-0">
+        <i class="bi bi-shield-lock text-success me-1"></i> Access Control List (ACL)
+      </h5>
+      <p class="text-secondary small mb-0">
+        Per-document explicit grants. No folder inheritance. Revocation takes effect immediately on the next millisecond.
+      </p>
+    </div>
+    <span class="badge bg-success-subtle text-success-emphasis">
+      {{ active_perms.count }} Active Grant{{ active_perms.count|pluralize }}
+    </span>
+  </div>
+
+  <!-- Grant Form (Owner only) -->
+  {% if is_owner %}
+  <div class="p-3 bg-dark rounded border border-secondary mb-3">
+    <div class="small fw-semibold text-secondary text-uppercase mb-2">
+      <i class="bi bi-person-plus text-success me-1"></i> Grant Access to a Named User
+    </div>
+    <form method="post" action="{% url 'permission_grant' doc_id=doc.id %}" class="row g-2 align-items-center">
+      {% csrf_token %}
+      <div class="col-12 col-md-5">
+        <select name="user_id" class="form-select form-select-sm bg-dark text-white border-secondary" required>
+          <option value="">Select a user...</option>
+          {% for u in all_users %}
+          <option value="{{ u.id }}">{{ u.username }} ({{ u.email }} - {{ u.role }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <select name="permission_level" class="form-select form-select-sm bg-dark text-white border-secondary">
+          <option value="READ">READ (Download & View)</option>
+          <option value="EDIT">EDIT (Download, View & Update Title/Notes)</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <button type="submit" class="btn btn-emerald btn-sm w-100">Confirm Grant</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Active Grants Table -->
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="text-secondary small text-uppercase">
+        <tr>
+          <th>User</th>
+          <th>Level</th>
+          <th>Granted At</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for perm in active_perms %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-white">{{ perm.user.username }}</div>
+            <div class="text-secondary" style="font-size: 0.75rem;">{{ perm.user.email }}</div>
+          </td>
+          <td>
+            <span class="badge {% if perm.permission_level == 'EDIT' %}bg-warning-subtle text-warning-emphasis{% else %}bg-primary-subtle text-primary-emphasis{% endif %}">
+              {{ perm.permission_level }}
+            </span>
+          </td>
+          <td class="small text-secondary">{{ perm.granted_at|date:"M d, Y H:i" }}</td>
+          <td class="text-end">
+            {% if is_owner %}
+            <a href="{% url 'permission_revoke' doc_id=doc.id perm_id=perm.id %}" onclick="return confirm('Revoke access for {{ perm.user.username }} immediately?')" class="btn btn-outline-danger btn-sm py-0">
+              <i class="bi bi-x-circle me-1"></i> Revoke Access
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-secondary py-3 small">
+            No active grants. Only the owner can read or download this file.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Document Audit Trail -->
+{% if is_owner or user.role == 'admin' %}
+<div class="card p-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold text-white mb-0">
+      <i class="bi bi-clock-history text-warning me-1"></i> Document Audit Trail
+    </h5>
+    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ audit_logs.count }} Records</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm font-monospace small align-middle mb-0">
+      <thead class="text-secondary text-uppercase" style="font-size: 0.65rem;">
+        <tr>
+          <th>Seq #</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Actor</th>
+          <th>HMAC-SHA256 Hash</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_logs %}
+        <tr>
+          <td class="text-warning">#{{ log.sequence_number }}</td>
+          <td class="text-secondary font-sans">{{ log.timestamp|date:"M d, H:i:s" }}</td>
+          <td><span class="badge bg-dark border border-secondary text-white">{{ log.action }}</span></td>
+          <td class="font-sans text-white">{{ log.user.username|default:"Anonymous" }}</td>
+          <td class="text-secondary text-truncate" style="max-width: 180px;" title="{{ log.entry_hash }}">{{ log.entry_hash|slice:":16" }}...</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

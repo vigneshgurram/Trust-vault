@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Trail & HMAC Verification — TrustVault{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 pb-3 border-bottom border-secondary mb-4">
+  <div>
+    <h3 class="fw-bold text-white mb-1">
+      <i class="bi bi-shield-check text-warning me-2"></i> Immutable Audit Trail
+    </h3>
+    <p class="text-secondary small mb-0">
+      Every file view, download, permission grant, and revocation is mathematically chained with HMAC-SHA256.
+    </p>
+  </div>
+
+  <a href="{% url 'audit_trail' %}?verify=1" class="btn btn-warning fw-semibold shadow">
+    <i class="bi bi-link-45deg me-1"></i> Verify HMAC Blockchain
+  </a>
+</div>
+
+<!-- Verification Status Alert -->
+{% if verify_result %}
+<div class="alert {% if verify_result.valid %}alert-success border-success{% else %}alert-danger border-danger{% endif %} d-flex align-items-center gap-3 p-3 rounded-4 mb-4" role="alert">
+  <i class="bi {% if verify_result.valid %}bi-check-circle-fill text-success fs-3{% else %}bi-exclamation-triangle-fill text-danger fs-3{% endif %}"></i>
+  <div>
+    <div class="fw-bold">
+      {% if verify_result.valid %}
+        Cryptographic Chain Integrity Verified (Genesis to Tip)
+      {% else %}
+        CRITICAL: Audit Trail Tampering Detected!
+      {% endif %}
+    </div>
+    <div class="small">{{ verify_result.message }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <form method="get" id="actionForm" class="d-flex align-items-center gap-2">
+    <label class="text-secondary small text-uppercase fw-semibold">Filter:</label>
+    <select name="action" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="document.getElementById('actionForm').submit()">
+      <option value="">All Actions ({{ total_count }})</option>
+      {% for act in actions %}
+      <option value="{{ act }}" {% if act == selected_action %}selected{% endif %}>{{ act }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <span class="text-secondary small font-monospace">Showing {{ logs.count }} records</span>
+</div>
+
+<!-- Audit Log Table -->
+<div class="card overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 font-monospace small">
+      <thead class="table-dark text-secondary text-uppercase" style="font-size: 0.7rem;">
+        <tr>
+          <th class="ps-4">Seq #</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Actor</th>
+          <th>Resource Details</th>
+          <th>HMAC-SHA256 Hash</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="ps-4 text-warning fw-bold">#{{ log.sequence_number }}</td>
+          <td class="text-secondary font-sans">{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+          <td>
+            <span class="badge bg-dark border border-secondary text-white text-uppercase" style="font-size: 0.65rem;">
+              {{ log.action }}
+            </span>
+          </td>
+          <td class="font-sans">
+            <span class="text-white fw-semibold">{{ log.user.username|default:"Anonymous" }}</span>
+            {% if log.ip_address %}<span class="text-secondary d-block" style="font-size: 0.65rem;">IP: {{ log.ip_address }}</span>{% endif %}
+          </td>
+          <td class="text-secondary text-truncate" style="max-width: 250px;" title="{{ log.details|default:'' }}">
+            {{ log.details|default:"—" }}
+          </td>
+          <td>
+            <span class="code-pill text-secondary text-truncate d-inline-block" style="max-width: 140px;" title="{{ log.entry_hash }}">
+              {{ log.entry_hash|slice:":16" }}...
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-secondary py-4 font-sans">No audit records match the filter.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

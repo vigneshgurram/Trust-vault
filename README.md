@@ -4,122 +4,93 @@
 
 ## Overview
 
-TrustVault is a secure document management system built for organisations that share confidential documents: salary letters, contracts, audit papers, regulatory filings. It solves two problems that are expensive when they go wrong:
+TrustVault is an enterprise document security system built for organisations that share confidential documents (salary letters, contracts, blueprints, regulatory filings, audit papers).
 
-1. **Permissions** — Someone is given access to one file and can see forty. TrustVault enforces per-document grants. No folders, no inheritance, no accidental widening.
+It solves two expensive problems:
+1. **Permissions**: Someone is given access to a folder to see one file and can now see forty. TrustVault implements strict **per-document ACL grants with zero folder or group inheritance**.
+2. **Audit Evidence**: When a document leaks, who opened it and when? TrustVault provides an **HMAC-SHA256 cryptographically chained audit blockchain** where any tampering breaks the verification chain from that point forward.
 
-2. **Audit** — When a document leaks, the first question is "who opened this, and when?" TrustVault's HMAC-chained audit trail can answer that, and you can prove the answer hasn't been altered.
+---
 
-## Quick Start
+## Tech Stack (Option B: Django + DRF + PostgreSQL)
 
-### Prerequisites
-- Node.js 20+ and npm
-- Git
+- **Backend**: Python 3.12, Django 5.1+, Django REST Framework (DRF)
+- **Production Server**: Gunicorn + WhiteNoise (Brotli static compression)
+- **Database**: PostgreSQL on Render (falls back to SQLite for local development)
+- **Frontend**: Bootstrap 5.3 + Bootstrap Icons (responsive cybersecurity theme)
+- **Cryptography**: AES-256-GCM authenticated encryption at rest via `cryptography`
+- **Audit Ledger**: HMAC-SHA256 mathematical blockchain
+- **Deployment**: Render Web Service + Managed PostgreSQL
 
-### Setup
-```bash
-# Clone and install
-git clone <repo-url>
-cd trustvault
+---
 
-# Backend
-cd backend
-npm install
-npx prisma generate
-npx prisma db push
-npm run db:seed
+## Demo Credentials (Seeded Automatically)
 
-# Frontend (in a new terminal)
-cd frontend
-npm install
-```
+| Role | Username | Email | Password | Permissions & Capabilities |
+| :--- | :--- | :--- | :--- | :--- |
+| **Admin** | `admin` | `admin@trustvault.com` | `Admin@123456` | Full system oversight, user lockout, global audit ledger, HMAC verification |
+| **Owner 1** | `owner` | `owner@trustvault.com` | `Owner@123456` | Uploads encrypted documents, grants/revokes permissions to other users |
+| **Owner 2** | `owner2` | `owner2@trustvault.com` | `Owner2@123456` | Separate owner (verifies cross-user isolation: cannot see Owner 1's files) |
+| **Viewer 1** | `viewer` | `viewer@trustvault.com` | `Viewer@123456` | Can view and download files explicitly granted to them |
+| **Viewer 2** | `viewer2` | `viewer2@trustvault.com` | `Viewer2@123456` | Unshared user (shows an empty vault) |
+| **Disabled** | `disabled` | `disabled@trustvault.com` | `Disabled@123456` | Locked-out account (verifies immediate authentication rejection) |
 
-### Run
-```bash
-# Backend (from /backend)
-npm run dev
+---
 
-# Frontend (from /frontend)
-npm run dev
-```
-
-The API runs on `http://localhost:3001` and the frontend on `http://localhost:5173`.
-
-## Seed Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | admin@trustvault.com | Admin@123456 |
-| **Owner** | owner@trustvault.com | Owner@123456 |
-| **Owner 2** | owner2@trustvault.com | Owner2@123456 |
-| **Viewer** | viewer@trustvault.com | Viewer@123456 |
-| **Viewer 2** | viewer2@trustvault.com | Viewer2@123456 |
-
-## Architecture
-
-### Stack
-- **Backend**: Node.js + Express + TypeScript
-- **Frontend**: React + TypeScript + Vite
-- **Database**: SQLite via Prisma ORM
-- **File Storage**: AES-256-GCM encrypted files on disk
-- **Auth**: JWT (15-minute expiry) with server-side permission checks
-
-### Security Design
-
-1. **Per-document ACL** — No folders, no groups, no inheritance. Every permission is an explicit grant to a named user on a specific document. EDIT implies READ.
-
-2. **Server-side enforcement** — JWT carries identity only (user ID, role). Every request checks permissions against the database in real time. No permission caching.
-
-3. **Immediate revocation** — When access is revoked, the permission row is timestamped. The next request by that user is denied. No token invalidation delay.
-
-4. **HMAC-chained audit trail** — Every action (upload, download, view, edit, delete, permission grant/revoke, login, failed login) is logged. Each entry's hash includes the previous entry's hash, so tampering with any entry breaks the chain.
-
-5. **Files encrypted at rest** — AES-256-GCM. Files stored under random UUID names outside the web root. No direct URL access.
-
-6. **Defense in depth** — Helmet security headers, CORS restriction, rate limiting, input validation (Zod), bcrypt password hashing (cost 12), path traversal prevention.
-
-### Role Model
-
-| Role | Capabilities |
-|------|-------------|
-| **Admin** | Manage users, view all audit logs, verify audit chain, view system dashboard. Cannot read documents unless explicitly granted |
-| **Owner** | Upload documents, grant/revoke per-document access, edit/delete own documents, view audit trail for own documents |
-| **Viewer** | Read/download documents they've been granted access to, edit documents with EDIT permission. Cannot upload, cannot grant permissions |
-
-## Running Tests
+## Local Development & Testing
 
 ```bash
-cd backend
-npm test
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Run database migrations
+python manage.py migrate
+
+# 3. Seed initial users & roles
+python manage.py seed_data
+
+# 4. Run automated security test suite
+python manage.py test
+
+# 5. Start development server
+python manage.py runserver
 ```
+App runs at: `http://127.0.0.1:8000/`
 
-The test suite includes:
-- Authentication tests (login, token validation, disabled accounts)
-- **Authorization tests** (cross-user access prevention, permission enforcement, immediate revocation)
-- Audit trail tests (logging, HMAC chain integrity, tamper detection)
+---
 
-## Project Structure
+## Deploying to Render (Step-by-Step)
 
-```
-trustvault/
-├── backend/
-│   ├── src/
-│   │   ├── middleware/     # auth, permissions, audit, validation
-│   │   ├── routes/         # auth, documents, permissions, audit, admin
-│   │   ├── services/       # encryption, audit-chain
-│   │   ├── prisma/         # schema, seed
-│   │   └── tests/          # authorization, audit, auth tests
-│   ├── prisma/             # schema.prisma
-│   └── uploads/            # encrypted files (gitignored)
-├── frontend/
-│   └── src/                # React application
-├── THREATS.md              # Threat model
-├── PROMPTS.md              # AI usage log
-├── API.md                  # API documentation
-└── README.md               # This file
-```
+### Option 1: Render Blueprint (Easiest - 1 Click)
+1. Go to **[render.com](https://render.com)** -> Click **New +** -> **Blueprint**.
+2. Connect your `Trust-vault` repository.
+3. Render automatically detects `render.yaml`, provisions a **PostgreSQL Database** (`trustvault-db`) and a **Web Service** (`trustvault-web`), runs `build.sh`, applies migrations, and seeds users!
 
-## Key Files
-- [THREATS.md](./THREATS.md) — Threat model: what could break, what we did, what we accepted
-- [PROMPTS.md](./PROMPTS.md) — AI usage log with corrections
-- [API.md](./API.md) — API endpoint documentation with access control
+### Option 2: Manual Web Service Setup
+1. **Create PostgreSQL Database** on Render:
+   - Name: `trustvault-db`
+   - Plan: **Free**
+   - Copy the **Internal Database URL**.
+2. **Create Web Service** on Render:
+   - Connect repo: `vigneshgurram/Trust-vault`
+   - Runtime: `Python`
+   - Build Command: `./build.sh`
+   - Start Command: `gunicorn trustvault.wsgi:application`
+   - Add Environment Variables:
+     - `DATABASE_URL` = *(Internal Database URL from step 1)*
+     - `SECRET_KEY` = *(click Generate)*
+     - `DEBUG` = `False`
+     - `AUDIT_HMAC_SECRET` = *(click Generate)*
+     - `ENCRYPTION_KEY` = `0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
+     - `ALLOWED_HOSTS` = `*`
+3. Click **Deploy Web Service**.
+
+---
+
+## Core Security Guarantees Tested
+
+1. **Strict Server-Side Authorization**: Every document access is validated against the database. No client-side bypasses.
+2. **Denial of ID Enumeration**: Unauthorized requests return `404 Not Found` (never 403), concealing whether a document UUID exists.
+3. **Immediate Revocation**: No caching or session delay. Revoking an ACL grant takes effect on the next millisecond.
+4. **Tamper-Evident HMAC Audit Blockchain**: Altering any historical log row breaks the verification chain from that entry forward.
+5. **AES-256-GCM Storage**: Files are encrypted before being written to disk under random UUIDs. Plaintext SHA-256 checksum is verified upon download.
